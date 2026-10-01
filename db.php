@@ -1,0 +1,8 @@
+<?php
+$config = require __DIR__ . '/config.php';
+try {
+  $conn = new PDO("mysql:host={$config['host']};dbname={$config['dbname']};charset=utf8", $config['user'], $config['password']);
+  $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+  die('MySQL Connection failed');
+}
