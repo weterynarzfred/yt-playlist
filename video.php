@@ -1,14 +1,15 @@
 <?php
-  $data = json_decode($result[$i]['data']);
+  $data    = json_decode($result[$i]['data']);
+  $title   = htmlspecialchars($data->title ?? '');
+  $videoID = htmlspecialchars($result[$i]['videoID']);
 ?>
 <div class="video" data-ID="<?=$result[$i]["ID"]?>"
-  data-videoID="<?=$result[$i]["videoID"]?>" data-title="<?=$data->title?>"
-  data-starttime="<?=$data->startTime?>" data-endtime="<?=$data->endTime?>">
+  data-videoID="<?=$videoID?>" data-title="<?=$title?>"
+  data-starttime="<?=htmlspecialchars($data->startTime ?? '')?>" data-endtime="<?=htmlspecialchars($data->endTime ?? '')?>">
   <div class="video-edit">e</div>
   <div class="video-play-next">n</div>
   <div class="video-delete">d</div>
   <div class="video-title">
-    <?=$data->title == "" ? "???" : $data->title?></div>
-  <div class="video-id"><?=$result[$i]["videoID"]?></div>
-  <!-- <div class="video-data"><?=$result[$i]["data"]?></div> -->
+    <?=$title == "" ? "???" : $title?></div>
+  <div class="video-id"><?=$videoID?></div>
 </div>

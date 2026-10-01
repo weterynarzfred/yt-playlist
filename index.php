@@ -68,7 +68,7 @@
             ?>
         <div id="searches-wrap">
           <div id="searches"
-            data-searches='<?=str_replace("'", "&#39;", json_encode($searches))?>'>
+            data-searches='<?=htmlspecialchars(json_encode($searches), ENT_QUOTES)?>'>
             <div id="search-save">save</div>
             <div id="search-list">
               <?php
@@ -77,8 +77,8 @@
               <div class="search" data-search-id="<?=$i?>">
                 <div class="search-delete"></div>
                 <div class="search-title"
-                  data-filter="<?=str_replace("'", "&#39;", $searches[$i])?>">
-                  <?=str_replace("'", "&#39;", $searches[$i])?></div>
+                  data-filter="<?=htmlspecialchars($searches[$i])?>">
+                  <?=htmlspecialchars($searches[$i])?></div>
               </div>
               <?php
                 }
