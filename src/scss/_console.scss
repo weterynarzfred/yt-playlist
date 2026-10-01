@@ -17,6 +17,29 @@
 
 .message {
   animation: fade-out 0.4s 5s forwards;
+
+  &.has-action {
+    animation-delay: 10s;
+  }
+
+  &:hover {
+    animation-play-state: paused;
+  }
+
+  button {
+    margin-left: 0.5em;
+    padding: 0 0.4em;
+    border: none;
+    background-color: #555;
+    color: #fff;
+    font: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #777;
+    }
+  }
 }
 
 @keyframes spin {

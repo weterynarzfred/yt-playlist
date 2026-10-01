@@ -18,8 +18,17 @@
   align-items: center;
   line-height: 15px;
 
+  &:hover {
+    background-color: #fff2;
+  }
+
   &.current .video-title {
     color: #fff;
+  }
+
+  // Playback stops after this video, so the line marks where it ends.
+  &.pause-after {
+    box-shadow: 0 1px 0 #c55;
   }
 }
 
@@ -32,21 +41,14 @@
   }
 }
 
-.video-edit,
-.video-play-next,
-.video-delete {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 10px;
-  height: 10px;
-  margin: 0 2px;
+.video-menu-button {
+  flex-shrink: 0;
+  margin: 1px 2px 1px auto;
+  padding: 0 5px;
   background-color: #555;
-  color: #aaa;
-  font-size: 0.75em;
-  font-weight: 700;
-  line-height: 1;
-  text-transform: uppercase;
+  color: #ccc;
+  font-size: 1.4em;
+  line-height: 11px;
   cursor: pointer;
 
   &:hover {
@@ -55,25 +57,12 @@
   }
 }
 
-.video-delete {
-  display: none;
-  background-color: #744;
-
-  &:hover {
-    background-color: #944;
-  }
-
-  .delete-active & {
-    display: flex;
-  }
-}
-
 .title-edit {
   position: absolute;
   z-index: 2;
   top: 0;
   right: 0;
-  left: 28px;
+  left: 0;
   display: flex;
   flex-wrap: wrap;
 

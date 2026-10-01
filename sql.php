@@ -12,8 +12,13 @@ try {
     case 'insert':
       $conn->prepare('INSERT INTO `playlist` (`videoID`, `playlistID`) VALUES (?, ?)')
         ->execute([param('videoID'), param('playlistID')]);
+      $id = $conn->lastInsertId();
+      // Restoring a deleted video sends its old data along.
+      if (isset($_POST['data'])) {
+        $conn->prepare('UPDATE `playlist` SET `data` = ? WHERE `ID` = ?')->execute([$_POST['data'], $id]);
+      }
       $sql = $conn->prepare('SELECT `ID`, `videoID`, `data` FROM `playlist` WHERE `ID` = ?');
-      $sql->execute([$conn->lastInsertId()]);
+      $sql->execute([$id]);
       $result = $sql->fetchAll(PDO::FETCH_ASSOC);
       $i = 0;
       echo 's';

@@ -1,0 +1,36 @@
+#menu {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 10em;
+  padding: 0.3em 0;
+  background-color: #222;
+  box-shadow: 0 2px 8px #000a;
+
+  &[hidden] {
+    display: none;
+  }
+
+  button {
+    padding: 0.4em 1em 0.4em 2em;
+    border: none;
+    background: none;
+    color: #ccc;
+    font: inherit;
+    letter-spacing: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #444;
+      color: #fff;
+    }
+
+    &.checked::before {
+      content: '✓';
+      position: absolute;
+      margin-left: -1.3em;
+    }
+  }
+}

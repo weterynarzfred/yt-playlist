@@ -6,7 +6,6 @@ export default class Video {
   constructor(element) {
     this.element = element;
     this.titleElement = element.querySelector('.video-title');
-    this.editButton = element.querySelector('.video-edit');
     this.id = element.dataset.id;
     this.videoId = element.dataset.videoid;
     this.title = element.dataset.title;
@@ -15,22 +14,25 @@ export default class Video {
     this.filtered = false;
   }
 
+  get data() {
+    return { title: this.title, startTime: this.startTime, endTime: this.endTime };
+  }
+
+  get label() {
+    return this.title || this.videoId;
+  }
+
+  // Returns whether the change was saved.
   async update(changes) {
     Object.assign(this, changes);
     this.titleElement.textContent = this.title || '???';
-    displayText(`update to title ${this.title} queued`);
-    const response = await post('update', {
-      ID: this.id,
-      data: JSON.stringify({ title: this.title, startTime: this.startTime, endTime: this.endTime }),
-    });
-    displayText(`update to title ${this.title} ${response === 'success' ? 'successful' : 'failed'}`);
+    const response = await post('update', { ID: this.id, data: JSON.stringify(this.data) });
+    if (response !== 'success') displayText(`saving ${this.label} failed`);
+    return response === 'success';
   }
 
-  toggleEditor() {
-    this.form ? this.closeEditor() : this.openEditor();
-  }
-
-  openEditor() {
+  openEditor(onSave) {
+    if (this.form) return;
     this.form = document.createElement('form');
     this.form.className = 'title-edit';
     this.form.innerHTML = `
@@ -45,7 +47,7 @@ export default class Video {
 
     this.form.addEventListener('submit', event => {
       event.preventDefault();
-      this.update({
+      onSave({
         title: title.value,
         startTime: parseTime(startTime.value),
         endTime: parseTime(endTime.value),
@@ -53,9 +55,8 @@ export default class Video {
       this.closeEditor();
     });
 
-    // The edit button is excluded so its own click can toggle the editor closed.
     this.closeOnOutsideClick = event => {
-      if (!this.form.contains(event.target) && event.target !== this.editButton) this.closeEditor();
+      if (!this.form.contains(event.target)) this.closeEditor();
     };
     document.addEventListener('pointerdown', this.closeOnOutsideClick);
 

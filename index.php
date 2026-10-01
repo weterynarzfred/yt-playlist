@@ -50,9 +50,6 @@
           die();
         }
       ?>
-    <div id="nav">
-      <div id="delete-toggle">toggle delete</div>
-    </div>
     <div class="player-column">
       <div id="player"></div>
       <div id="buttons">

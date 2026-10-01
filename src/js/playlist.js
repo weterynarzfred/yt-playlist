@@ -1,6 +1,8 @@
 import Video from './Video';
 import { post } from './api';
 import { displayText } from './console';
+import { record } from './history';
+import { openMenu } from './menu';
 import { getPlayerTitle, loadVideo } from './player';
 
 const ERROR_TAG = / \[error \d+\]/;
@@ -9,6 +11,12 @@ const list = document.getElementById('playlist');
 export const playlistId = list.dataset.playlistid;
 const videos = [...list.querySelectorAll('.video')].map(element => new Video(element));
 let current = null;
+let pauseAfter = null;
+
+// Videos newly flagged with the same error since the last successful play. When YouTube
+// breaks the player session, every video fails with the same code until a page reload.
+const ERROR_STREAK_LIMIT = 5;
+let errorStreak = { code: null, flagged: [] };
 
 const render = () => list.replaceChildren(...videos.filter(video => !video.filtered).map(video => video.element));
 
@@ -17,7 +25,7 @@ function play(video) {
   current = video;
   video.element.classList.add('current');
   loadVideo(video);
-  displayText(`${video.title} started playing`);
+  displayText(`${video.label} started playing`);
 }
 
 export function playNext() {
@@ -26,6 +34,19 @@ export function playNext() {
     const video = videos[(start + i) % videos.length];
     if (!video.filtered) return play(video);
   }
+}
+
+// Called when a video ends or fails. Stops instead of advancing past the pause-after video.
+function advance() {
+  if (current !== pauseAfter) return playNext();
+  setPauseAfter(null);
+  displayText(`paused after ${current.label}`);
+}
+
+function setPauseAfter(video) {
+  pauseAfter?.element.classList.remove('pause-after');
+  pauseAfter = video;
+  video?.element.classList.add('pause-after');
 }
 
 function queueNext(video) {
@@ -55,44 +76,108 @@ export function filterVideos(regex) {
 
 // Fills in missing titles from YouTube and clears error tags once a video plays again.
 export function onPlaying() {
+  errorStreak = { code: null, flagged: [] };
   if (!current.title) current.update({ title: getPlayerTitle() });
   else if (ERROR_TAG.test(current.title)) current.update({ title: current.title.replace(ERROR_TAG, '') });
   document.title = current.title;
 }
 
+export const onEnded = advance;
+
 export function onError(code) {
-  if (!ERROR_TAG.test(current.title)) current.update({ title: `${current.title} [error ${code}]` });
-  playNext();
+  if (ERROR_TAG.test(current.title)) return advance();
+
+  if (code !== errorStreak.code) errorStreak = { code, flagged: [] };
+  const video = current;
+  const title = video.title;
+  const saving = video.update({ title: `${title} [error ${code}]` });
+  errorStreak.flagged.push({ video, title, saving });
+  if (errorStreak.flagged.length < ERROR_STREAK_LIMIT) return advance();
+
+  // Likely a broken session rather than broken videos: stop and remove the tags just added.
+  displayText(`${ERROR_STREAK_LIMIT} videos in a row failed with error ${code}, YouTube is probably refusing playback`, {
+    label: 'reload',
+    onClick: () => location.reload(),
+  });
+  errorStreak.flagged.forEach(async ({ video, title, saving }) => {
+    await saving;
+    video.update({ title });
+  });
+  errorStreak = { code: null, flagged: [] };
+}
+
+// The insert action replies with "s" followed by the new row's HTML.
+async function insert(videoId, data) {
+  const response = await post('insert', { videoID: videoId, playlistID: playlistId, ...(data && { data: JSON.stringify(data) }) });
+  if (response[0] !== 's') return null;
+  const template = document.createElement('template');
+  template.innerHTML = response.slice(1).trim();
+  return template.content.firstElementChild;
 }
 
 export async function addVideo(videoId) {
-  displayText(`video with ID: ${videoId} queued`);
-  const response = await post('insert', { videoID: videoId, playlistID: playlistId });
-  if (response[0] !== 's') return displayText(`video with ID: ${videoId} failed to be added`);
-
-  const template = document.createElement('template');
-  template.innerHTML = response.slice(1).trim();
-  const video = new Video(template.content.firstElementChild);
+  const element = await insert(videoId);
+  if (!element) return displayText(`adding ${videoId} failed`);
+  const video = new Video(element);
   videos.push(video);
-  list.append(video.element);
-  displayText(`video with ID: ${videoId} added successfully`);
+  list.append(element);
+  record(`added ${videoId}`, () => deleteVideo(video, false));
 }
 
-async function deleteVideo(video) {
-  displayText(`deletion of ${video.title} queued`);
+async function editVideo(video, changes) {
+  const previous = video.data;
+  if (await video.update(changes)) {
+    record(`edited ${video.label}`, async () => {
+      if (await video.update(previous)) displayText(`reverted ${video.label}`);
+    });
+  }
+}
+
+async function deleteVideo(video, undoable = true) {
   const response = await post('delete', { ID: video.id });
-  if (response !== 'success') return displayText(`deletion of ${video.title} failed`);
+  if (response !== 'success') return displayText(`deleting ${video.label} failed`);
 
-  videos.splice(videos.indexOf(video), 1);
+  const index = videos.indexOf(video);
+  videos.splice(index, 1);
   video.element.remove();
-  displayText(`deletion of ${video.title} successful`);
+  if (video === pauseAfter) setPauseAfter(null);
+  if (undoable) record(`deleted ${video.label}`, () => restoreVideo(video, index));
+  else displayText(`removed ${video.label}`);
 }
+
+// Re-inserts a deleted video at its old position. The row gets a new database ID.
+async function restoreVideo(video, index) {
+  const element = await insert(video.videoId, video.data);
+  if (!element) return displayText(`restoring ${video.label} failed`);
+  video.id = element.dataset.id;
+  videos.splice(index, 0, video);
+  render();
+  displayText(`restored ${video.label}`);
+}
+
+function openVideoMenu(video, x, y) {
+  openMenu(x, y, [
+    { label: 'edit', action: () => video.openEditor(changes => editVideo(video, changes)) },
+    { label: 'queue next', action: () => queueNext(video) },
+    { label: 'pause after', checked: video === pauseAfter, action: () => setPauseAfter(video === pauseAfter ? null : video) },
+    { label: 'delete', action: () => deleteVideo(video) },
+  ]);
+}
+
+const findVideo = target => videos.find(video => video.element === target.closest('.video'));
 
 list.addEventListener('click', event => {
-  const video = videos.find(video => video.element === event.target.closest('.video'));
-  if (!video) return;
+  const video = findVideo(event.target);
   if (event.target.matches('.video-title')) play(video);
-  if (event.target.matches('.video-play-next')) queueNext(video);
-  if (event.target.matches('.video-delete')) deleteVideo(video);
-  if (event.target.matches('.video-edit')) video.toggleEditor();
+  if (event.target.matches('.video-menu-button')) {
+    const { left, bottom } = event.target.getBoundingClientRect();
+    openVideoMenu(video, left, bottom);
+  }
+});
+
+list.addEventListener('contextmenu', event => {
+  const video = findVideo(event.target);
+  if (!video || event.target.closest('.title-edit')) return;
+  event.preventDefault();
+  openVideoMenu(video, event.clientX, event.clientY);
 });
