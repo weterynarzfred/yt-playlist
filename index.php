@@ -33,17 +33,15 @@
     </div>
     <?php } else {
         $searches = false;
-        $sql      = sprintf("SELECT `searches` FROM `playlists` WHERE `ID` = '%s'", $_GET['playlistID']);
         try {
-          $sql = $conn->prepare($sql);
-          $sql->execute();
+          $sql = $conn->prepare('SELECT `searches` FROM `playlists` WHERE `ID` = ?');
+          $sql->execute([$_GET['playlistID']]);
           $result = $sql->fetchAll(PDO::FETCH_ASSOC);
           if ($result && count($result)) {
             $searches = json_decode($result[0]['searches']);
           } else {
-            $sql = sprintf("INSERT INTO `playlists` (`ID`, `searches`) VALUES ('%s', '%s')", $_GET['playlistID'], json_encode([]));
-            $sql = $conn->prepare($sql);
-            $sql->execute();
+            $conn->prepare('INSERT INTO `playlists` (`ID`, `searches`) VALUES (?, ?)')
+              ->execute([$_GET['playlistID'], json_encode([])]);
           }
         } catch (PDOException $e) {
           echo "MySQL Selection failed: " . $e->getMessage();
@@ -94,12 +92,11 @@
         <div id="lyrics"></div>
         <div class="rmin"></div>
       </div>
-      <div id="playlist" data-playlistID="<?=$_GET['playlistID']?>">
+      <div id="playlist" data-playlistID="<?=htmlspecialchars($_GET['playlistID'])?>">
         <?php
-          $sql = sprintf("SELECT `ID`, `videoID`, `data` FROM `playlist` WHERE `playlistID` = '%s'", $_GET['playlistID']);
             try {
-              $sql = $conn->prepare($sql);
-              $sql->execute();
+              $sql = $conn->prepare('SELECT `ID`, `videoID`, `data` FROM `playlist` WHERE `playlistID` = ?');
+              $sql->execute([$_GET['playlistID']]);
               $result = $sql->fetchAll(PDO::FETCH_ASSOC);
               if ($result) {
                 for ($i = 0; $i < count($result); $i++) {
