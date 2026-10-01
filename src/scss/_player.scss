@@ -1,0 +1,52 @@
+.player-column {
+  padding-bottom: 25px;
+
+  @media (min-width: 1200px) {
+    position: fixed;
+    left: 0;
+    width: 50%;
+    padding: 0 3em;
+  }
+}
+
+// The YouTube API sets fixed 640x360 attributes; CSS scales it down on narrow screens.
+#player {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+}
+
+#buttons {
+  margin: 25px 0;
+  text-align: center;
+
+  > div {
+    display: inline-block;
+    padding: 0 5px;
+    cursor: pointer;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+}
+
+#filter {
+  display: block;
+  width: 95%;
+  margin: 0 auto;
+  border: none;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-size: 1.1em;
+  letter-spacing: 0.05em;
+  resize: vertical;
+
+  &:focus {
+    background-color: #000;
+  }
+}

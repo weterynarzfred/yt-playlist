@@ -1,0 +1,59 @@
+// Collapsed by default, expands while the filter input has focus.
+#searches-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s;
+
+  &.open {
+    grid-template-rows: 1fr;
+  }
+}
+
+#searches {
+  display: flex;
+  flex-direction: column;
+  max-width: 80em;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 0 3em;
+  overflow: hidden;
+  text-align: center;
+}
+
+#search-save {
+  padding: 0.5em;
+  cursor: pointer;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.search {
+  position: relative;
+  padding: 0.2em 0;
+}
+
+.search-title {
+  color: #aaa;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.search-delete {
+  position: absolute;
+  top: 50%;
+  left: -15px;
+  margin-top: -5px;
+  padding: 5px;
+  background-color: #744;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #944;
+  }
+}

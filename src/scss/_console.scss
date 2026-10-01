@@ -1,0 +1,35 @@
+#console {
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  svg {
+    width: 20px;
+    opacity: 0;
+    transition: opacity 0.4s;
+    animation: spin infinite 1s cubic-bezier(0.25, -0.25, 0.75, 1.25);
+  }
+
+  &.loading svg {
+    opacity: 1;
+  }
+}
+
+.message {
+  animation: fade-out 0.4s 5s forwards;
+}
+
+@keyframes spin {
+  50% {
+    transform: rotate(270deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}

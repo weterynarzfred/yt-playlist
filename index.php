@@ -1,19 +1,20 @@
-<?php require __DIR__ . '/db.php'; ?>
-
+<?php
+  require __DIR__ . '/db.php';
+  $asset = fn($file) => "./dist/$file?v=" . filemtime(__DIR__ . "/dist/$file");
+?>
 <!DOCTYPE html>
 <html>
 
 <head>
   <title></title>
-  <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width" />
   <link rel="icon" type="image/png" href="./favicon.png" />
-  <link rel="stylesheet" type="text/css" href="./style.css?ver=1.3.3" />
+  <link rel="stylesheet" href="<?=$asset('style.css')?>" />
 </head>
 
 <body>
-  <div class="r"></div>
-  <div class="part slim">
+  <div class="page">
     <?php if (!isset($_GET['playlistID'])) {?>
     <div class="playlists">
       <ul>
@@ -31,13 +32,14 @@
       <p>Jak któreś ID jest puste to możecie sobie brać. Nie chce mi się bawić w
         logowanie, hasła i inne bajery.</p>
     </div>
+  </div>
     <?php } else {
-        $searches = false;
+        $searches = [];
         try {
           $sql = $conn->prepare('SELECT `searches` FROM `playlists` WHERE `ID` = ?');
           $sql->execute([$_GET['playlistID']]);
           $result = $sql->fetchAll(PDO::FETCH_ASSOC);
-          if ($result && count($result)) {
+          if ($result) {
             $searches = json_decode($result[0]['searches']);
           } else {
             $conn->prepare('INSERT INTO `playlists` (`ID`, `searches`) VALUES (?, ?)')
@@ -51,87 +53,47 @@
     <div id="nav">
       <div id="delete-toggle">toggle delete</div>
     </div>
-    <div class="flex">
-      <div class="player-flex">
-        <div id="player"></div>
-        <div class="rmin"></div>
-        <div id="buttons">
-          <div id="randomize">rand</div>
-          <div id="sort">sort</div>
-          <div id="next">next</div>
+    <div class="player-column">
+      <div id="player"></div>
+      <div id="buttons">
+        <div id="randomize">rand</div>
+        <div id="sort">sort</div>
+        <div id="next">next</div>
+      </div>
+      <textarea id="filter" placeholder="RegExp search, case insensitive"></textarea>
+      <div id="searches-wrap" data-searches='<?=htmlspecialchars(json_encode($searches), ENT_QUOTES)?>'>
+        <div id="searches">
+          <div id="search-save">save</div>
+          <div id="search-list"></div>
         </div>
-        <div class="rmin"></div>
-        <textarea id="filter"
-          placeholder="RegExp search, case insensitive"></textarea>
-        <?php
-          if ($searches !== false) {
-            ?>
-        <div id="searches-wrap">
-          <div id="searches"
-            data-searches='<?=htmlspecialchars(json_encode($searches), ENT_QUOTES)?>'>
-            <div id="search-save">save</div>
-            <div id="search-list">
-              <?php
-                for ($i = 0; $i < count($searches); $i++) {
-                    ?>
-              <div class="search" data-search-id="<?=$i?>">
-                <div class="search-delete"></div>
-                <div class="search-title"
-                  data-filter="<?=htmlspecialchars($searches[$i])?>">
-                  <?=htmlspecialchars($searches[$i])?></div>
-              </div>
-              <?php
-                }
-                  ?>
-            </div>
-          </div>
-        </div>
-        <?php
+      </div>
+    </div>
+    <div id="playlist" data-playlistID="<?=htmlspecialchars($_GET['playlistID'])?>">
+      <?php
+        try {
+          $sql = $conn->prepare('SELECT `ID`, `videoID`, `data` FROM `playlist` WHERE `playlistID` = ?');
+          $sql->execute([$_GET['playlistID']]);
+          $result = $sql->fetchAll(PDO::FETCH_ASSOC);
+          for ($i = 0; $i < count($result); $i++) {
+            include __DIR__ . '/video.php';
           }
-          ?>
-        <div id="lyrics"></div>
-        <div class="rmin"></div>
-      </div>
-      <div id="playlist" data-playlistID="<?=htmlspecialchars($_GET['playlistID'])?>">
-        <?php
-            try {
-              $sql = $conn->prepare('SELECT `ID`, `videoID`, `data` FROM `playlist` WHERE `playlistID` = ?');
-              $sql->execute([$_GET['playlistID']]);
-              $result = $sql->fetchAll(PDO::FETCH_ASSOC);
-              if ($result) {
-                for ($i = 0; $i < count($result); $i++) {
-                  include __DIR__ . '/video.php';
-                }
-              }
-            } catch (PDOException $e) {
-              echo "MySQL Selection failed: " . $e->getMessage();
-              die();
-            }
-          ?>
-
-      </div>
-      <div id="lyric-editor"></div>
+        } catch (PDOException $e) {
+          echo "MySQL Selection failed: " . $e->getMessage();
+          die();
+        }
+      ?>
     </div>
     <form class="add-form">
-      <input type="text" placeholder="paste the ID of a youtube video here"
-        class="add-video" />
+      <input type="text" placeholder="paste the ID of a youtube video here" class="add-video" />
     </form>
-    <?php }?>
   </div>
-  <div class="r"></div>
-  <div class="r"></div>
   <div id="console">
-    <svg id="load-icon" viewBox="0 0 10 10" style="display:none;">
-      <path d="M1 5L4 5" stroke-width="1" stroke="#aaa" />
-      <path d="M6 5L9 5" stroke-width="1" stroke="#aaa" />
-      <path d="M5 1L5 4" stroke-width="1" stroke="#aaa" />
-      <path d="M5 6L5 9" stroke-width="1" stroke="#aaa" />
+    <svg viewBox="0 0 10 10">
+      <path d="M1 5L4 5M6 5L9 5M5 1L5 4M5 6L5 9" stroke-width="1" stroke="#aaa" />
     </svg>
   </div>
-  <script
-    src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js">
-  </script>
-  <script src="./yt.js?ver=1.3.3"></script>
+  <script src="<?=$asset('yt.js')?>"></script>
+    <?php }?>
 </body>
 
 </html>

@@ -11,5 +11,4 @@
   <div class="video-delete">d</div>
   <div class="video-title">
     <?=$title == "" ? "???" : $title?></div>
-  <div class="video-id"><?=$videoID?></div>
 </div>
