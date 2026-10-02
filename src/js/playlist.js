@@ -13,22 +13,42 @@ const videos = [...list.querySelectorAll('.video')].map(element => new Video(ele
 let current = null;
 let pauseAfter = null;
 
+// Queued videos are kept out of `videos` and drawn indented right after the playing one, so
+// sorting, shuffling and filtering leave them alone. Each joins `videos` when it starts playing.
+const queue = [];
+const queuedFrom = new Map();
+
 // Videos newly flagged with the same error since the last successful play. When YouTube
 // breaks the player session, every video fails with the same code until a page reload.
 const ERROR_STREAK_LIMIT = 5;
 let errorStreak = { code: null, flagged: [] };
 
-const render = () => list.replaceChildren(...videos.filter(video => !video.filtered).map(video => video.element));
+function render() {
+  const queued = queue.map(video => video.element);
+  const rows = videos.includes(current) ? [] : [...queued];
+  for (const video of videos) {
+    // The playing video keeps its spot even when filtered out, dimmed until it ends.
+    if (!video.filtered || video === current) rows.push(video.element);
+    if (video === current) rows.push(...queued);
+  }
+  list.replaceChildren(...rows);
+}
 
 function play(video) {
+  if (queue.includes(video)) {
+    dequeue(video);
+    videos.splice(videos.indexOf(current) + 1, 0, video);
+  }
   current?.element.classList.remove('current');
   current = video;
   video.element.classList.add('current');
+  render();
   loadVideo(video);
   displayText(`${video.label} started playing`);
 }
 
 export function playNext() {
+  if (queue.length) return play(queue[0]);
   const start = videos.indexOf(current);
   for (let i = 1; i <= videos.length; i++) {
     const video = videos[(start + i) % videos.length];
@@ -49,10 +69,23 @@ function setPauseAfter(video) {
   video?.element.classList.add('pause-after');
 }
 
-function queueNext(video) {
-  if (video === current) return;
+function addToQueue(video) {
+  queuedFrom.set(video, videos.indexOf(video));
   videos.splice(videos.indexOf(video), 1);
-  videos.splice(videos.indexOf(current) + 1, 0, video);
+  queue.push(video);
+  video.element.classList.add('queued');
+  render();
+}
+
+function dequeue(video) {
+  queue.splice(queue.indexOf(video), 1);
+  video.element.classList.remove('queued');
+}
+
+// Puts the video back roughly where it was before being queued.
+function removeFromQueue(video) {
+  dequeue(video);
+  videos.splice(queuedFrom.get(video), 0, video);
   render();
 }
 
@@ -70,7 +103,11 @@ export function sortByTitle() {
 }
 
 export function filterVideos(regex) {
-  videos.forEach(video => (video.filtered = !regex.test(video.title)));
+  // Queued videos get the flag too, for when they join the list.
+  [...videos, ...queue].forEach(video => {
+    video.filtered = !regex.test(video.title);
+    video.element.classList.toggle('filtered', video.filtered);
+  });
   sortByTitle();
 }
 
@@ -137,20 +174,21 @@ async function deleteVideo(video, undoable = true) {
   const response = await post('delete', { ID: video.id });
   if (response !== 'success') return displayText(`deleting ${video.label} failed`);
 
-  const index = videos.indexOf(video);
-  videos.splice(index, 1);
+  const from = queue.includes(video) ? queue : videos;
+  const index = from.indexOf(video);
+  from.splice(index, 1);
   video.element.remove();
   if (video === pauseAfter) setPauseAfter(null);
-  if (undoable) record(`deleted ${video.label}`, () => restoreVideo(video, index));
+  if (undoable) record(`deleted ${video.label}`, () => restoreVideo(video, from, index));
   else displayText(`removed ${video.label}`);
 }
 
-// Re-inserts a deleted video at its old position. The row gets a new database ID.
-async function restoreVideo(video, index) {
+// Re-inserts a deleted video at its old position in the list or queue. The row gets a new database ID.
+async function restoreVideo(video, from, index) {
   const element = await insert(video.videoId, video.data);
   if (!element) return displayText(`restoring ${video.label} failed`);
   video.id = element.dataset.id;
-  videos.splice(index, 0, video);
+  from.splice(index, 0, video);
   render();
   displayText(`restored ${video.label}`);
 }
@@ -158,17 +196,24 @@ async function restoreVideo(video, index) {
 function openVideoMenu(video, x, y) {
   openMenu(x, y, [
     { label: 'edit', action: () => video.openEditor(changes => editVideo(video, changes)) },
-    { label: 'queue next', action: () => queueNext(video) },
+    ...(video === current ? [] : [queue.includes(video)
+      ? { label: 'remove from queue', hint: 'ctrl+click', action: () => removeFromQueue(video) }
+      : { label: 'add to queue', hint: 'ctrl+click', action: () => addToQueue(video) }]),
     { label: 'pause after', checked: video === pauseAfter, action: () => setPauseAfter(video === pauseAfter ? null : video) },
-    { label: 'delete', action: () => deleteVideo(video) },
+    { label: 'delete', danger: true, action: () => deleteVideo(video) },
   ]);
 }
 
-const findVideo = target => videos.find(video => video.element === target.closest('.video'));
+const findVideo = target => [...videos, ...queue].find(video => video.element === target.closest('.video'));
 
 list.addEventListener('click', event => {
   const video = findVideo(event.target);
-  if (event.target.matches('.video-title')) play(video);
+  // Ctrl+click toggles the video in the queue instead of playing it.
+  if (event.target.matches('.video-title')) {
+    if (!event.ctrlKey) play(video);
+    else if (queue.includes(video)) removeFromQueue(video);
+    else if (video !== current) addToQueue(video);
+  }
   if (event.target.matches('.video-menu-button')) {
     const { left, bottom } = event.target.getBoundingClientRect();
     openVideoMenu(video, left, bottom);
